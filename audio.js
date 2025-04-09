@@ -1,5 +1,3 @@
-import * as Tone from 'tone';
-
 // Constants and configuration
 const GRID_COLS = 16;
 const GRID_ROWS = 13;
@@ -10,6 +8,355 @@ const SCALES = {
   'blues': ['C', 'Eb', 'F', 'F#', 'G', 'Bb']
 };
 const CURRENT_SCALE = 'pentatonic';
+
+// Custom Audio Engine
+class AudioEngine {
+  constructor() {
+    this.context = null;
+    this.masterGain = null;
+    this.instruments = {};
+    this.reverb = null;
+    this.oscillatorTypes = {
+      sine: 'sine',
+      square: 'square',
+      sawtooth: 'sawtooth',
+      triangle: 'triangle'
+    };
+  }
+
+  async initialize() {
+    this.context = new (window.AudioContext || window.webkitAudioContext)();
+    
+    // Create master gain node
+    this.masterGain = this.context.createGain();
+    this.masterGain.gain.value = 0.7; // Default volume
+    this.masterGain.connect(this.context.destination);
+    
+    // Create reverb
+    this.reverb = await this.createReverb(1.5);
+    
+    // Create instruments
+    this.instruments = {
+      synth: this.createSynth({ type: 'sine', attack: 0.02, decay: 0.1, sustain: 0.3, release: 1 }),
+      bass: this.createSynth({ type: 'triangle', attack: 0.05, decay: 0.2, sustain: 0.4, release: 1.5 }),
+      piano: this.createSynth({ type: 'triangle', attack: 0.01, decay: 0.1, sustain: 0.5, release: 1 }),
+      guitar: this.createSynth({ type: 'square', attack: 0.01, decay: 0.1, sustain: 0.3, release: 1 }),
+      drum: this.createDrumSynth(),
+      flute: this.createFMSynth({ modRatio: 3.01, modAmount: 14, attack: 0.1, decay: 0.2, sustain: 0.8, release: 1.5 }),
+      harp: this.createPluckedSynth(),
+      bells: this.createMetalSynth()
+    };
+  }
+
+  resumeContext() {
+    if (this.context && this.context.state !== 'running') {
+      this.context.resume();
+    }
+  }
+
+  createSynth({ type, attack, decay, sustain, release }) {
+    return (note, duration = 0.25) => {
+      // Convert note to frequency if it's a string
+      const freq = typeof note === 'string' ? this.noteToFrequency(note) : note;
+      
+      const oscillator = this.context.createOscillator();
+      oscillator.type = type;
+      oscillator.frequency.value = freq;
+      
+      const gainNode = this.context.createGain();
+      gainNode.gain.value = 0;
+      
+      // Connect to reverb and master
+      oscillator.connect(gainNode);
+      gainNode.connect(this.reverb);
+      this.reverb.connect(this.masterGain);
+      
+      // Start oscillator
+      oscillator.start();
+      
+      // ADSR envelope
+      const now = this.context.currentTime;
+      gainNode.gain.linearRampToValueAtTime(0.8, now + attack);
+      gainNode.gain.linearRampToValueAtTime(sustain * 0.8, now + attack + decay);
+      gainNode.gain.setValueAtTime(sustain * 0.8, now + duration - release);
+      gainNode.gain.linearRampToValueAtTime(0, now + duration);
+      
+      // Stop and disconnect
+      setTimeout(() => {
+        oscillator.stop();
+        oscillator.disconnect();
+        gainNode.disconnect();
+      }, (duration + 0.1) * 1000);
+    };
+  }
+
+  createDrumSynth() {
+    return (_, duration = 0.1) => {
+      const noise = this.context.createBufferSource();
+      const bufferSize = this.context.sampleRate * 0.5;
+      const buffer = this.context.createBuffer(1, bufferSize, this.context.sampleRate);
+      const output = buffer.getChannelData(0);
+      
+      // Fill buffer with noise
+      for (let i = 0; i < bufferSize; i++) {
+        output[i] = Math.random() * 2 - 1;
+      }
+      
+      noise.buffer = buffer;
+      
+      const gainNode = this.context.createGain();
+      gainNode.gain.value = 0;
+      
+      // Filter to shape the noise
+      const filter = this.context.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = 440;
+      filter.Q.value = 0.7;
+      
+      // Connect
+      noise.connect(filter);
+      filter.connect(gainNode);
+      gainNode.connect(this.reverb);
+      this.reverb.connect(this.masterGain);
+      
+      // Start noise
+      noise.start();
+      
+      // Envelope
+      const now = this.context.currentTime;
+      gainNode.gain.linearRampToValueAtTime(0.8, now + 0.005);
+      gainNode.gain.linearRampToValueAtTime(0, now + duration);
+      
+      // Stop and disconnect
+      setTimeout(() => {
+        noise.stop();
+        noise.disconnect();
+        filter.disconnect();
+        gainNode.disconnect();
+      }, (duration + 0.1) * 1000);
+    };
+  }
+
+  createFMSynth({ modRatio, modAmount, attack, decay, sustain, release }) {
+    return (note, duration = 0.25) => {
+      const freq = typeof note === 'string' ? this.noteToFrequency(note) : note;
+      
+      // Carrier
+      const carrier = this.context.createOscillator();
+      carrier.type = 'sine';
+      carrier.frequency.value = freq;
+      
+      // Modulator
+      const modulator = this.context.createOscillator();
+      modulator.type = 'sine';
+      modulator.frequency.value = freq * modRatio;
+      
+      // Modulation gain
+      const modGain = this.context.createGain();
+      modGain.gain.value = modAmount * (freq / 100); // Scale mod amount by frequency
+      
+      // Output gain
+      const gainNode = this.context.createGain();
+      gainNode.gain.value = 0;
+      
+      // Connect
+      modulator.connect(modGain);
+      modGain.connect(carrier.frequency);
+      carrier.connect(gainNode);
+      gainNode.connect(this.reverb);
+      this.reverb.connect(this.masterGain);
+      
+      // Start oscillators
+      carrier.start();
+      modulator.start();
+      
+      // ADSR envelope
+      const now = this.context.currentTime;
+      gainNode.gain.linearRampToValueAtTime(0.8, now + attack);
+      gainNode.gain.linearRampToValueAtTime(sustain * 0.8, now + attack + decay);
+      gainNode.gain.setValueAtTime(sustain * 0.8, now + duration - release);
+      gainNode.gain.linearRampToValueAtTime(0, now + duration);
+      
+      // Stop and disconnect
+      setTimeout(() => {
+        carrier.stop();
+        modulator.stop();
+        carrier.disconnect();
+        modulator.disconnect();
+        modGain.disconnect();
+        gainNode.disconnect();
+      }, (duration + 0.1) * 1000);
+    };
+  }
+
+  createPluckedSynth() {
+    return (note, duration = 0.5) => {
+      const freq = typeof note === 'string' ? this.noteToFrequency(note) : note;
+      
+      // Create a buffer of noise
+      const bufferSize = this.context.sampleRate * 0.5;
+      const buffer = this.context.createBuffer(1, bufferSize, this.context.sampleRate);
+      const output = buffer.getChannelData(0);
+      
+      // Fill with noise
+      for (let i = 0; i < bufferSize; i++) {
+        output[i] = Math.random() * 2 - 1;
+      }
+      
+      // Create source and filter
+      const noise = this.context.createBufferSource();
+      noise.buffer = buffer;
+      
+      const filter = this.context.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = freq * 2;
+      filter.Q.value = 1;
+      
+      const gainNode = this.context.createGain();
+      gainNode.gain.value = 0.8;
+      
+      // Connect
+      noise.connect(filter);
+      filter.connect(gainNode);
+      gainNode.connect(this.reverb);
+      this.reverb.connect(this.masterGain);
+      
+      // Start
+      noise.start();
+      
+      // Decay
+      gainNode.gain.setValueAtTime(0.8, this.context.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, this.context.currentTime + duration);
+      
+      // Stop and disconnect
+      setTimeout(() => {
+        noise.stop();
+        noise.disconnect();
+        filter.disconnect();
+        gainNode.disconnect();
+      }, duration * 1000);
+    };
+  }
+
+  createMetalSynth() {
+    return (note, duration = 0.5) => {
+      const freq = typeof note === 'string' ? this.noteToFrequency(note) : note;
+      
+      // Multiple oscillators at harmonic frequencies for metallic sound
+      const harmonics = [1, 1.5, 2.32, 3.01, 4.7, 6.2];
+      const oscillators = [];
+      const gains = [];
+      
+      for (let i = 0; i < harmonics.length; i++) {
+        const osc = this.context.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.value = freq * harmonics[i];
+        
+        const gain = this.context.createGain();
+        gain.gain.value = 0.2 * (1 - i * 0.1); // Decreasing gain for higher harmonics
+        
+        // Connect
+        osc.connect(gain);
+        gain.connect(this.reverb);
+        
+        oscillators.push(osc);
+        gains.push(gain);
+        
+        // Start
+        osc.start();
+      }
+      
+      this.reverb.connect(this.masterGain);
+      
+      // Decay
+      for (const gain of gains) {
+        gain.gain.setValueAtTime(gain.gain.value, this.context.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.context.currentTime + duration);
+      }
+      
+      // Stop and disconnect
+      setTimeout(() => {
+        for (let i = 0; i < oscillators.length; i++) {
+          oscillators[i].stop();
+          oscillators[i].disconnect();
+          gains[i].disconnect();
+        }
+      }, duration * 1000);
+    };
+  }
+
+  async createReverb(timeInSeconds = 1) {
+    const sampleRate = this.context.sampleRate;
+    const length = sampleRate * timeInSeconds;
+    const impulse = this.context.createBuffer(2, length, sampleRate);
+    const impulseL = impulse.getChannelData(0);
+    const impulseR = impulse.getChannelData(1);
+    
+    // Create the impulse
+    for (let i = 0; i < length; i++) {
+      const n = i / length;
+      // Decay curve
+      const t = i / sampleRate;
+      const decay = Math.exp(-t * 3);
+      
+      // Random values between -1 and 1
+      impulseL[i] = (Math.random() * 2 - 1) * decay;
+      impulseR[i] = (Math.random() * 2 - 1) * decay;
+    }
+    
+    const convolver = this.context.createConvolver();
+    convolver.buffer = impulse;
+    
+    const reverbGain = this.context.createGain();
+    reverbGain.gain.value = 0.3; // Reverb wet level
+    
+    convolver.connect(reverbGain);
+    
+    return reverbGain;
+  }
+
+  noteToFrequency(note) {
+    const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    
+    // Parse the note and octave (e.g., "C4", "F#5")
+    let octave = parseInt(note.slice(-1));
+    let noteName = note.slice(0, -1);
+    
+    // Handle flats (e.g., "Eb4")
+    if (noteName.includes('b')) {
+      const flatNote = noteName.replace('b', '');
+      const flatIndex = notes.indexOf(flatNote);
+      if (flatIndex > 0) {
+        noteName = notes[flatIndex - 1];
+      } else {
+        noteName = notes[11]; // B if the flat note was C
+        octave -= 1;
+      }
+    }
+    
+    // Get the note index
+    const noteIndex = notes.indexOf(noteName);
+    
+    if (noteIndex === -1) {
+      console.error('Invalid note:', note);
+      return 440; // Default to A4
+    }
+    
+    // Calculate frequency (A4 = 440Hz)
+    const a4Index = 9 + 12 * 4; // A4 is the 9th note (0-indexed) in the 4th octave
+    const currentIndex = noteIndex + 12 * octave;
+    const halfStepsFromA4 = currentIndex - a4Index;
+    
+    return 440 * Math.pow(2, halfStepsFromA4 / 12);
+  }
+
+  setVolume(value) {
+    if (this.masterGain) {
+      // Convert to a reasonable volume curve
+      this.masterGain.gain.value = Math.pow(value, 2);
+    }
+  }
+}
 
 // State variables
 let isPlaying = false;
@@ -25,80 +372,21 @@ let roomState = null;
 let roomPresence = null;
 let networkSystem = null;
 let clientColor = null;
+let audioEngine = null;
 
 // Initialize the audio system
 export async function initializeAudio() {
+  audioEngine = new AudioEngine();
+  await audioEngine.initialize();
+  
   notes = generateNotes(CURRENT_SCALE, currentOctave, GRID_ROWS);
   
   // Initialize audio context on user interaction
   document.body.addEventListener('click', async () => {
-    if (Tone.context.state !== 'running') {
-      await Tone.start();
-      console.log('Audio context started');
-    }
+    audioEngine.resumeContext();
+    console.log('Audio context started');
   }, { once: true });
   
-  // Create instruments
-  const reverb = new Tone.Reverb(1.5).toDestination();
-  reverb.wet.value = 0.3;
-  
-  const instruments = {
-    synth: new Tone.PolySynth(Tone.Synth, {
-      oscillator: { type: 'sine' },
-      envelope: { attack: 0.02, decay: 0.1, sustain: 0.3, release: 1 }
-    }).connect(reverb),
-    
-    bass: new Tone.PolySynth(Tone.Synth, {
-      oscillator: { type: 'triangle' },
-      envelope: { attack: 0.05, decay: 0.2, sustain: 0.4, release: 1.5 }
-    }).connect(reverb),
-    
-    piano: new Tone.PolySynth(Tone.Synth, {
-      oscillator: { type: 'triangle8' },
-      envelope: { attack: 0.01, decay: 0.1, sustain: 0.5, release: 1 }
-    }).connect(reverb),
-    
-    guitar: new Tone.PolySynth(Tone.AMSynth, {
-      oscillator: { type: 'square' },
-      envelope: { attack: 0.01, decay: 0.1, sustain: 0.3, release: 1 }
-    }).connect(reverb),
-    
-    drum: new Tone.NoiseSynth({
-      noise: { type: 'white' },
-      envelope: { attack: 0.005, decay: 0.1, sustain: 0, release: 0.1 }
-    }).connect(reverb),
-    
-    // New spatial instruments for 3D world
-    flute: new Tone.PolySynth(Tone.FMSynth, {
-      harmonicity: 3.01,
-      modulationIndex: 14,
-      oscillator: { type: 'sine' },
-      envelope: { attack: 0.1, decay: 0.2, sustain: 0.8, release: 1.5 }
-    }).connect(reverb),
-    
-    harp: new Tone.PolySynth(Tone.PluckSynth).connect(reverb),
-    
-    bells: new Tone.PolySynth(Tone.MetalSynth, {
-      frequency: 200,
-      envelope: { attack: 0.001, decay: 1.4, release: 0.2 },
-      harmonicity: 5.1,
-      modulationIndex: 32,
-      resonance: 4000,
-      octaves: 1.5
-    }).connect(reverb)
-  };
-
-  // Helper function to play a sound
-  function playSound(note, instrument) {
-    if (instrument) {
-      if (instrument === instruments.drum) {
-        instrument.triggerAttackRelease('16n');
-      } else {
-        instrument.triggerAttackRelease(note, '16n');
-      }
-    }
-  }
-
   // Return the audio system API
   return {
     setNetworkSystem(network) {
@@ -125,9 +413,7 @@ export async function initializeAudio() {
     
     setVolume(vol) {
       volume = vol;
-      Object.values(instruments).forEach(inst => {
-        inst.volume.value = volume * 10 - 10; // Convert to dB scale
-      });
+      audioEngine.setVolume(volume);
     },
     
     setTempo(bpm) {
@@ -181,7 +467,7 @@ export async function initializeAudio() {
                 
                 // Play the sound
                 if (clientId === networkSystem.getClientId()) {
-                  playSound(noteInfo.note, instruments[noteInfo.instrument]);
+                  this.playSound(noteInfo.note, noteInfo.instrument);
                 } else {
                   // Request other clients to play their notes
                   networkSystem.requestPresenceUpdate(clientId, {
@@ -220,7 +506,9 @@ export async function initializeAudio() {
     },
     
     playSound(note, instrumentType) {
-      playSound(note, instruments[instrumentType] || instruments.synth);
+      audioEngine.resumeContext();
+      const instrument = audioEngine.instruments[instrumentType] || audioEngine.instruments.synth;
+      instrument(note, 0.25);
     },
     
     setupGrid(gridElement, clientColor) {
@@ -283,7 +571,7 @@ export async function initializeAudio() {
         cell.style.backgroundColor = color;
         
         // Play sound immediately on click
-        playSound(note, instruments[currentInstrument]);
+        this.playSound(note, currentInstrument);
         
         // Send note flash event
         const rect = cell.getBoundingClientRect();
@@ -310,43 +598,35 @@ export async function initializeAudio() {
     
     // Spatial audio for 3D world
     createPositionalSound(position, instrument = 'synth', camera) {
-      const listener = new Tone.Listener();
-      Tone.Transport.on('update', () => {
-        if (camera) {
-          listener.setPosition(
-            camera.position.x,
-            camera.position.y,
-            camera.position.z
-          );
-          
-          const direction = new THREE.Vector3(0, 0, -1);
-          direction.applyQuaternion(camera.quaternion);
-          
-          listener.setOrientation(
-            direction.x,
-            direction.y,
-            direction.z,
-            0, 1, 0
-          );
-        }
-      });
+      // Create a panner node
+      const panner = audioEngine.context.createPanner();
+      panner.panningModel = 'HRTF';
+      panner.distanceModel = 'exponential';
+      panner.refDistance = 1;
+      panner.maxDistance = 10000;
+      panner.rolloffFactor = 1;
+      panner.coneInnerAngle = 360;
+      panner.coneOuterAngle = 0;
+      panner.coneOuterGain = 0;
       
-      const panner = new Tone.Panner3D({
-        positionX: position.x,
-        positionY: position.y,
-        positionZ: position.z,
-        rolloff: 'linear',
-        distanceModel: 'exponential',
-        maxDistance: 10000,
-        refDistance: 1,
-        rolloffFactor: 1
-      }).toDestination();
+      // Set position
+      panner.positionX.value = position.x;
+      panner.positionY.value = position.y;
+      panner.positionZ.value = position.z;
       
-      const synth = instruments[instrument].connect(panner);
+      // Connect to master
+      panner.connect(audioEngine.masterGain);
       
       return {
         play(note) {
-          synth.triggerAttackRelease(note, '8n');
+          // Create a temporary gain node for this note
+          const gainNode = audioEngine.context.createGain();
+          gainNode.gain.value = 0.5;
+          gainNode.connect(panner);
+          
+          // Play the note
+          const instrument = audioEngine.instruments[instrument] || audioEngine.instruments.synth;
+          instrument(note, 0.25);
         },
         setPosition(x, y, z) {
           panner.positionX.value = x;
