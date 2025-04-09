@@ -24,11 +24,20 @@ export async function setupNetwork(onReady, onJoin, onLeave, onUpdate) {
     });
   }
   
-  // Subscribe to presence changes
+  // Store callback reference
+  const updateCallback = onUpdate;
+  
+  // Subscribe to presence changes - fixed to safely handle callbacks
   room.subscribePresence((presence) => {
+    if (!presence) return;
+    
     Object.keys(presence).forEach(clientId => {
-      if (clientId !== room.clientId && presence[clientId]) {
-        onUpdate(clientId, presence[clientId]);
+      if (clientId !== room.clientId && presence[clientId] && updateCallback) {
+        try {
+          updateCallback(clientId, presence[clientId]);
+        } catch (err) {
+          console.warn("Error in presence update:", err);
+        }
       }
     });
   });

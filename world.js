@@ -148,14 +148,28 @@ export async function createWorld(scene, loadingManager) {
     
     updateRemotePlayer(clientId, data) {
       const player = players[clientId];
-      if (player) {
-        if (data.position) {
-          player.position.set(data.position.x, data.position.y, data.position.z);
-        }
-        
-        if (data.rotation) {
-          player.rotation.set(data.rotation.x, data.rotation.y, data.rotation.z);
-        }
+      if (!player) {
+        // Create player if it doesn't exist yet
+        const username = data.username || `Player ${clientId.substring(0, 4)}`;
+        this.createRemotePlayer(clientId, username);
+        return;
+      }
+      
+      // Now safely update the existing player
+      if (data.position) {
+        player.position.set(
+          data.position.x || 0, 
+          data.position.y || 0, 
+          data.position.z || 0
+        );
+      }
+      
+      if (data.rotation) {
+        player.rotation.set(
+          data.rotation.x || 0, 
+          data.rotation.y || 0, 
+          data.rotation.z || 0
+        );
       }
     },
     

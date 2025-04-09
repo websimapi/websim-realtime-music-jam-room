@@ -32,29 +32,34 @@ async function init() {
   setupThreeJs();
   setupPostProcessing();
   
-  // Initialize network first, but don't trigger callbacks yet
-  networkSystem = await setupNetwork(onNetworkReady, onPlayerJoin, onPlayerLeave, onPlayerUpdate);
-  
-  // Initialize audio system after network
-  audioSystem = await initializeAudio();
-  audioSystem.setNetworkSystem(networkSystem);
-  
-  // Setup UI event listeners
-  setupUIControls();
-  
-  // Start loading world assets
-  world = await createWorld(scene, loadingManager);
-  
-  // Now that the world is ready, we can trigger the network ready callback
-  networkSystem.triggerReady();
-  
-  // Start the render loop
-  clock.start();
-  animate();
-  
-  // Hide loading screen once everything is ready
-  document.getElementById('loading-screen').style.display = 'none';
-  isWorldReady = true;
+  try {
+    // Initialize network first, but don't trigger callbacks yet
+    networkSystem = await setupNetwork(onNetworkReady, onPlayerJoin, onPlayerLeave, onPlayerUpdate);
+    
+    // Initialize audio system after network
+    audioSystem = await initializeAudio();
+    audioSystem.setNetworkSystem(networkSystem);
+    
+    // Setup UI event listeners
+    setupUIControls();
+    
+    // Start loading world assets
+    world = await createWorld(scene, loadingManager);
+    
+    // Now that the world is ready, we can trigger the network ready callback
+    networkSystem.triggerReady();
+    
+    // Start the render loop
+    clock.start();
+    animate();
+    
+    // Hide loading screen once everything is ready
+    document.getElementById('loading-screen').style.display = 'none';
+    isWorldReady = true;
+  } catch (err) {
+    console.error("Error during initialization:", err);
+    document.getElementById('loading-text').textContent = `Error: ${err.message}. Try refreshing the page.`;
+  }
 }
 
 function setupLoadingManager() {
@@ -318,8 +323,15 @@ function onPlayerLeave(clientId, username) {
 }
 
 function onPlayerUpdate(clientId, data) {
-  if (clientId !== networkSystem.getClientId()) {
-    world.updateRemotePlayer(clientId, data);
+  // Add safety checks for world and networkSystem
+  if (!world || !networkSystem) return;
+  
+  try {
+    if (clientId !== networkSystem.getClientId()) {
+      world.updateRemotePlayer(clientId, data);
+    }
+  } catch (err) {
+    console.warn("Error updating remote player:", err);
   }
 }
 
