@@ -1,0 +1,150 @@
+export async function setupNetwork(onReady, onJoin, onLeave, onUpdate) {
+  const room = new WebsimSocket();
+  
+  await room.initialize();
+  
+  // Initial state when joining room
+  const initialPresence = {
+    instrument: 'exploring',
+    color: getRandomColor(),
+    position: { x: 0, y: 0, z: 0 },
+    rotation: { x: 0, y: 0, z: 0 },
+    activeNotes: {}
+  };
+  
+  room.updatePresence(initialPresence);
+  
+  // If room state is empty, initialize it
+  if (!room.roomState.tempo) {
+    room.updateRoomState({
+      tempo: 120,
+      isPlaying: false,
+      instrumentPositions: {},
+      worldSeed: Math.floor(Math.random() * 1000000)
+    });
+  }
+  
+  // Subscribe to presence changes
+  room.subscribePresence((presence) => {
+    Object.keys(presence).forEach(clientId => {
+      if (clientId !== room.clientId && presence[clientId]) {
+        onUpdate(clientId, presence[clientId]);
+      }
+    });
+  });
+  
+  // Subscribe to room state changes
+  room.subscribeRoomState((state) => {
+    // Handle state changes
+  });
+  
+  // Listen for presence update requests
+  room.subscribePresenceUpdateRequests((request, fromClientId) => {
+    if (request.type === 'playNote') {
+      // Handle play note requests
+    }
+  });
+  
+  // Event handling
+  room.onmessage = (event) => {
+    const data = event.data;
+    
+    switch(data.type) {
+      case 'connected':
+        onJoin(data.clientId, data.username);
+        break;
+      case 'disconnected':
+        onLeave(data.clientId, data.username);
+        break;
+    }
+  };
+  
+  // Notify that we're ready
+  const self = room.peers[room.clientId];
+  const roomInfo = {
+    username: self.username,
+    clientId: room.clientId,
+    avatarUrl: self.avatarUrl
+  };
+  
+  onReady(roomInfo);
+  
+  // Return network API
+  return {
+    getClientId() {
+      return room.clientId;
+    },
+    
+    getClientColor() {
+      return room.presence[room.clientId]?.color || '#6c5ce7';
+    },
+    
+    getPeers() {
+      return room.peers;
+    },
+    
+    getPresence() {
+      return room.presence;
+    },
+    
+    getRoomState() {
+      return room.roomState;
+    },
+    
+    updatePresence(presenceData) {
+      room.updatePresence(presenceData);
+    },
+    
+    updateRoomState(stateData) {
+      room.updateRoomState(stateData);
+    },
+    
+    requestPresenceUpdate(clientId, updateData) {
+      room.requestPresenceUpdate(clientId, updateData);
+    },
+    
+    send(eventData) {
+      room.send(eventData);
+    }
+  };
+}
+
+export function updatePlayerState(position, rotation) {
+  // Only send updates when values change significantly to reduce network traffic
+  const currentPosition = room.presence[room.clientId]?.position;
+  const currentRotation = room.presence[room.clientId]?.rotation;
+  
+  let shouldUpdate = false;
+  
+  if (!currentPosition || 
+      Math.abs(currentPosition.x - position.x) > 0.1 ||
+      Math.abs(currentPosition.y - position.y) > 0.1 ||
+      Math.abs(currentPosition.z - position.z) > 0.1) {
+    shouldUpdate = true;
+  }
+  
+  if (!currentRotation ||
+      Math.abs(currentRotation.y - rotation.y) > 0.1) {
+    shouldUpdate = true;
+  }
+  
+  if (shouldUpdate) {
+    room.updatePresence({
+      position: {
+        x: position.x,
+        y: position.y,
+        z: position.z
+      },
+      rotation: {
+        x: rotation.x,
+        y: rotation.y,
+        z: rotation.z
+      }
+    });
+  }
+}
+
+function getRandomColor() {
+  const hue = Math.floor(Math.random() * 360);
+  return `hsl(${hue}, 70%, 65%)`;
+}

@@ -1,0 +1,404 @@
+:root {
+  --primary: #6c5ce7;
+  --secondary: #a29bfe;
+  --accent: #fd79a8;
+  --light: #f8f9fa;
+  --dark: #2d3436;
+  --success: #00b894;
+  --danger: #d63031;
+  --warning: #fdcb6e;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  user-select: none;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  overflow: hidden;
+  touch-action: none;
+  width: 100vw;
+  height: 100vh;
+}
+
+#world-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+#ui-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  pointer-events: none;
+}
+
+header {
+  background-color: rgba(0, 0, 0, 0.4);
+  padding: 1rem;
+  text-align: center;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  pointer-events: auto;
+}
+
+h1 {
+  font-size: 2rem;
+  color: var(--light);
+  margin-bottom: 0.5rem;
+}
+
+#room-info {
+  color: var(--light);
+  font-size: 1rem;
+}
+
+.participants {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin: 1rem;
+  pointer-events: auto;
+}
+
+.participant {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background-color: rgba(0, 0, 0, 0.6);
+  border-radius: 20px;
+  border: 2px solid transparent;
+  transition: all 0.2s ease;
+  color: var(--light);
+}
+
+.participant.self {
+  border-color: var(--accent);
+}
+
+.participant-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background-color: var(--primary);
+  overflow: hidden;
+}
+
+.participant-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.participant-name {
+  font-weight: bold;
+}
+
+.participant-instrument {
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+
+.controls {
+  position: absolute;
+  bottom: 1rem;
+  right: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+  background-color: rgba(0, 0, 0, 0.6);
+  border-radius: 8px;
+  pointer-events: auto;
+  width: 200px;
+}
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.control-group label {
+  color: var(--light);
+}
+
+.btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.btn-primary {
+  background-color: var(--primary);
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: var(--secondary);
+  transform: translateY(-2px);
+}
+
+.btn-secondary {
+  background-color: var(--secondary);
+  color: white;
+}
+
+.btn-secondary:hover {
+  background-color: var(--primary);
+  transform: translateY(-2px);
+}
+
+.btn-danger {
+  background-color: var(--danger);
+  color: white;
+}
+
+.btn-danger:hover {
+  background-color: #ff4757;
+  transform: translateY(-2px);
+}
+
+.btn-close {
+  background: none;
+  border: none;
+  color: var(--light);
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+.instrument-panel {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 90%;
+  max-width: 800px;
+  height: 80%;
+  background-color: rgba(0, 0, 0, 0.8);
+  border-radius: 8px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  pointer-events: auto;
+  z-index: 10;
+}
+
+.instrument-panel.hidden {
+  display: none;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.panel-header h2 {
+  color: var(--light);
+}
+
+.instrument-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  overflow-y: auto;
+  max-height: 150px;
+  padding: 0.5rem;
+}
+
+.instrument-item {
+  padding: 0.5rem;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: var(--light);
+}
+
+.instrument-item:hover, .instrument-item.active {
+  background-color: var(--primary);
+}
+
+.jam-grid {
+  position: relative;
+  flex: 1;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.grid-container {
+  display: grid;
+  grid-template-columns: repeat(16, 1fr);
+  grid-template-rows: repeat(13, 1fr);
+  height: 100%;
+  gap: 1px;
+  padding: 2px;
+}
+
+.grid-cell {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  transition: all 0.1s ease;
+  cursor: pointer;
+}
+
+.grid-cell:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.grid-cell.active {
+  background-color: var(--primary);
+  box-shadow: 0 0 10px var(--primary);
+}
+
+.grid-cell.playing {
+  animation: pulse 0.5s infinite alternate;
+}
+
+@keyframes pulse {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0.8; transform: scale(1.05); }
+}
+
+.playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background-color: var(--accent);
+  z-index: 5;
+  pointer-events: none;
+}
+
+.instrument-controls {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+input[type="range"] {
+  padding: 0.5rem;
+  border-radius: 4px;
+  background-color: var(--dark);
+  color: var(--light);
+  width: 100%;
+}
+
+#tempo-value {
+  color: var(--light);
+  font-size: 0.9rem;
+}
+
+/* Mobile joystick controls */
+.mobile-controls {
+  position: absolute;
+  bottom: 1rem;
+  left: 1rem;
+  display: none;
+  pointer-events: auto;
+}
+
+.joystick-container {
+  width: 120px;
+  height: 120px;
+  background-color: rgba(0, 0, 0, 0.3);
+  border-radius: 50%;
+  position: relative;
+}
+
+.joystick {
+  width: 50px;
+  height: 50px;
+  background-color: rgba(108, 92, 231, 0.8);
+  border-radius: 50%;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.action-buttons {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: center;
+}
+
+.action-button {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background-color: var(--primary);
+  color: white;
+  border: none;
+  font-weight: bold;
+}
+
+/* Loading screen */
+#loading-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: var(--dark);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
+}
+
+.loading-content {
+  text-align: center;
+  color: var(--light);
+  padding: 2rem;
+}
+
+.loading-bar {
+  width: 300px;
+  height: 10px;
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 5px;
+  margin: 1rem auto;
+  overflow: hidden;
+}
+
+#loading-progress {
+  height: 100%;
+  width: 0%;
+  background-color: var(--primary);
+  transition: width 0.3s ease;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .controls {
+    width: 150px;
+  }
+  
+  .mobile-controls {
+    display: block;
+  }
+  
+  .instrument-panel {
+    width: 95%;
+    height: 90%;
+  }
+}

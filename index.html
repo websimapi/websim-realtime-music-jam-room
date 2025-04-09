@@ -3,7 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Realtime Music Jam Room</title>
+  <title>Sonic Explorer</title>
+  <link rel="stylesheet" href="styles.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.157.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.157.0/examples/jsm/",
+      "tone": "https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"
+    }
+  }
+  </script>
   <style>
     :root {
       --primary: #6c5ce7;
@@ -299,77 +309,74 @@
   </style>
 </head>
 <body>
-  <header>
-    <h1>Realtime Music Jam Room</h1>
-    <div id="room-info">Getting ready...</div>
-  </header>
-  
-  <main>
-    <div class="container">
-      <div class="participants" id="participants">
-        <!-- Participants will be added here -->
+  <div id="ui-container">
+    <header>
+      <h1>Sonic Explorer</h1>
+      <div id="room-info">Getting ready...</div>
+    </header>
+    
+    <div class="participants" id="participants">
+      <!-- Participants will be added here -->
+    </div>
+    
+    <div id="controls" class="controls">
+      <div class="control-group">
+        <button id="play-btn" class="btn btn-primary">Start Playing</button>
+        <button id="instrument-btn" class="btn btn-secondary">My Instruments</button>
       </div>
       
-      <div class="transport">
-        <div class="transport-btn" id="play-btn">
-          <svg viewBox="0 0 24 24" fill="currentColor">
-            <path d="M8 5v14l11-7z"/>
-          </svg>
-        </div>
-        <div class="transport-btn" id="stop-btn">
-          <svg viewBox="0 0 24 24" fill="currentColor">
-            <path d="M6 6h12v12H6z"/>
-          </svg>
-        </div>
+      <div class="control-group">
+        <label for="volume">Volume</label>
+        <input type="range" id="volume" min="0" max="100" value="70">
       </div>
-      
+    </div>
+    
+    <div id="mobile-controls" class="mobile-controls">
+      <div class="joystick-container">
+        <div id="joystick" class="joystick"></div>
+      </div>
+      <div class="action-buttons">
+        <button id="mobile-action" class="action-button">Interact</button>
+      </div>
+    </div>
+    
+    <div id="instrument-panel" class="instrument-panel hidden">
+      <div class="panel-header">
+        <h2>My Instruments</h2>
+        <button id="close-panel" class="btn-close">×</button>
+      </div>
+      <div id="instrument-list" class="instrument-list">
+        <!-- Instruments will be listed here -->
+      </div>
       <div class="jam-grid">
         <div class="grid-container" id="grid">
           <!-- Grid cells will be generated here -->
         </div>
         <div class="playhead" id="playhead"></div>
       </div>
-      
-      <div class="controls">
-        <div class="control-group">
-          <label for="instrument">Instrument</label>
-          <select id="instrument">
-            <option value="synth">Synth</option>
-            <option value="bass">Bass</option>
-            <option value="drum">Drums</option>
-            <option value="piano">Piano</option>
-            <option value="guitar">Guitar</option>
-          </select>
-        </div>
-        
-        <div class="control-group">
-          <label for="volume">Volume</label>
-          <input type="range" id="volume" min="0" max="100" value="70">
-        </div>
-        
+      <div class="instrument-controls">
         <div class="control-group">
           <label for="tempo">Tempo</label>
           <input type="range" id="tempo" min="60" max="180" value="120">
           <div id="tempo-value">120 BPM</div>
         </div>
-        
-        <div class="control-group">
-          <label for="octave">Octave</label>
-          <select id="octave">
-            <option value="2">Low</option>
-            <option value="3" selected>Medium</option>
-            <option value="4">High</option>
-          </select>
-        </div>
-        
-        <div class="control-group">
-          <button class="btn btn-danger" id="clear-btn">Clear My Notes</button>
-        </div>
+        <button class="btn btn-danger" id="clear-btn">Clear My Notes</button>
       </div>
     </div>
-  </main>
+  </div>
   
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+  <div id="loading-screen">
+    <div class="loading-content">
+      <h2>Entering the Sonic World</h2>
+      <div class="loading-bar"><div id="loading-progress"></div></div>
+      <p id="loading-text">Loading assets...</p>
+    </div>
+  </div>
+  
+  <canvas id="world-canvas"></canvas>
+  
+  <script type="module" src="app.js"></script>
+  
   <script>
     // Constants and configuration
     const GRID_COLS = 16;
@@ -917,4 +924,3 @@
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"4c6229722a6346bc8eb5cb0e5eae5d41","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>
-
