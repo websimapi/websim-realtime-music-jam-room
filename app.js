@@ -11,7 +11,7 @@ import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 import { initializeAudio, setupInstruments } from './audio.js';
 import { loadModels, createWorld } from './world.js';
 import { setupNetwork, updatePlayerState, setRoomReference } from './network.js';
-import { isMobile, setupMobileControls } from './controls.js';
+import { isMobile, setupMobileControls, setupDesktopControls, updatePlayerMovement } from './controls.js';
 
 // Global references
 let camera, scene, renderer, composer;
@@ -24,6 +24,7 @@ let animationFrame;
 let clock = new THREE.Clock();
 let isWorldReady = false;
 let loadingManager;
+let isFirstPerson = true; // Default to first-person view
 
 // Initialize the application
 async function init() {
@@ -46,10 +47,6 @@ async function init() {
   
   // Now that the world is ready, we can trigger the network ready callback
   networkSystem.triggerReady();
-  
-  if (isMobile()) {
-    setupMobileControls(player, camera, world, audioSystem);
-  }
   
   // Start the render loop
   clock.start();
@@ -89,7 +86,7 @@ function setupThreeJs() {
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1;
   
-  // Set up camera controls
+  // Set up camera controls for third-person view
   controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.05;
@@ -97,6 +94,7 @@ function setupThreeJs() {
   controls.minDistance = 1;
   controls.maxDistance = 50;
   controls.maxPolarAngle = Math.PI / 2;
+  controls.enabled = !isFirstPerson; // Disable when in first-person mode
   
   // Add ambient light
   const ambientLight = new THREE.AmbientLight(0x404040);
@@ -119,6 +117,32 @@ function setupThreeJs() {
     
   // Handle window resize
   window.addEventListener('resize', onWindowResize);
+  
+  // Add a key listener for switching between first and third person
+  window.addEventListener('keydown', (e) => {
+    if (e.code === 'KeyV') {
+      toggleViewMode();
+    }
+  });
+}
+
+function toggleViewMode() {
+  isFirstPerson = !isFirstPerson;
+  controls.enabled = !isFirstPerson;
+  
+  if (isFirstPerson) {
+    // First-person: camera moves with player
+    camera.position.set(0, 1.6, 0);
+    camera.rotation.set(0, 0, 0);
+  } else {
+    // Third-person: orbit controls take over
+    controls.target.copy(player.position);
+    camera.position.set(
+      player.position.x + 5,
+      player.position.y + 5,
+      player.position.z + 5
+    );
+  }
 }
 
 function setupPostProcessing() {
@@ -213,6 +237,16 @@ function setupUIControls() {
     });
     networkSystem.updatePresence({ activeNotes: {} });
   });
+  
+  // Add info text about controls
+  const roomInfo = document.getElementById('room-info');
+  const controlsInfo = document.createElement('div');
+  controlsInfo.innerHTML = `
+    <div style="margin-top: 5px; font-size: 0.8rem;">
+      Controls: WASD to move, E to interact, Space to jump, V to toggle view
+    </div>
+  `;
+  roomInfo.appendChild(controlsInfo);
 }
 
 function onNetworkReady(roomInfo) {
@@ -237,6 +271,13 @@ function onNetworkReady(roomInfo) {
   
   // Create instrument list
   setupInstrumentList();
+  
+  // Set up controls based on device
+  if (isMobile()) {
+    setupMobileControls(player, camera, world, audioSystem);
+  } else {
+    setupDesktopControls(player, camera, world, audioSystem);
+  }
 }
 
 function setupInstrumentList() {
@@ -321,11 +362,31 @@ function animate() {
   const delta = clock.getDelta();
   
   // Update controls
-  controls.update();
+  if (!isFirstPerson) {
+    controls.update();
+  }
+  
+  // Update player movement for desktop
+  if (player && isWorldReady && !isMobile()) {
+    updatePlayerMovement(player, camera, delta);
+  }
   
   // Update world entities
   if (isWorldReady && world) {
     world.update(delta);
+  }
+  
+  // Update camera position for first-person mode
+  if (isFirstPerson && player) {
+    camera.position.set(
+      player.position.x,
+      player.position.y + 1.6,
+      player.position.z
+    );
+    camera.quaternion.copy(player.quaternion);
+  } else if (!isFirstPerson && player) {
+    // Update orbit controls target to follow player
+    controls.target.copy(player.position);
   }
   
   // Update network with player position if changed

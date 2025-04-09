@@ -41,7 +41,10 @@ export async function setupNetwork(onReady, onJoin, onLeave, onUpdate) {
   // Listen for presence update requests
   room.subscribePresenceUpdateRequests((request, fromClientId) => {
     if (request.type === 'playNote') {
-      // Handle play note requests
+      // Forward to the audio system - this will be handled in the app.js file
+      if (window.audioSystem) {
+        window.audioSystem.playSound(request.note, request.instrument);
+      }
     }
   });
   
@@ -56,6 +59,15 @@ export async function setupNetwork(onReady, onJoin, onLeave, onUpdate) {
       case 'disconnected':
         onLeave(data.clientId, data.username);
         break;
+      case 'noteOn':
+        // Handle note playing events
+        if (window.audioSystem) {
+          // Play instrument sound based on the event
+          const note = data.note || 'C4'; // Default note if not specified
+          const instrument = data.instrument || 'synth';
+          window.audioSystem.playSound(note, instrument);
+        }
+        break;
     }
   };
   
@@ -66,6 +78,9 @@ export async function setupNetwork(onReady, onJoin, onLeave, onUpdate) {
     clientId: room.clientId,
     avatarUrl: self.avatarUrl
   };
+  
+  // Set the global room reference for position updates
+  setRoomReference(room);
   
   // Return network API with a trigger for onReady callback
   return {

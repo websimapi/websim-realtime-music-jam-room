@@ -1,11 +1,30 @@
+import * as THREE from 'three';
+
 export function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 }
+
+// Movement and controls state
+const keys = {
+  forward: false,
+  backward: false,
+  left: false,
+  right: false,
+  jump: false,
+  run: false
+};
+
+let moveSpeed = 0.15; 
+const GRAVITY = 0.01;
+let velocity = new THREE.Vector3();
+let canJump = true;
+let isOnGround = true;
 
 export function setupMobileControls(player, camera, world, audioSystem) {
   const joystickElement = document.getElementById('joystick');
   const joystickContainer = document.querySelector('.joystick-container');
   const mobileControls = document.getElementById('mobile-controls');
+  const actionButton = document.getElementById('mobile-action');
   
   // Show mobile controls
   mobileControls.style.display = 'block';
@@ -44,9 +63,9 @@ export function setupMobileControls(player, camera, world, audioSystem) {
   });
   
   // Action button event
-  document.getElementById('mobile-action').addEventListener('touchstart', (e) => {
+  actionButton.addEventListener('touchstart', (e) => {
     e.preventDefault();
-    interactWithNearestInstrument();
+    interactWithNearestInstrument(player.position, world, audioSystem);
   });
   
   function updateJoystickPosition(clientX, clientY) {
@@ -75,7 +94,6 @@ export function setupMobileControls(player, camera, world, audioSystem) {
   }
   
   // Movement update loop
-  const moveSpeed = 0.1;
   const rotateSpeed = 0.05;
   
   function updateMovement() {
@@ -104,14 +122,125 @@ export function setupMobileControls(player, camera, world, audioSystem) {
   }
   
   updateMovement();
+}
+
+export function setupDesktopControls(player, camera, world, audioSystem) {
+  // Add keyboard event listeners
+  document.addEventListener('keydown', onKeyDown);
+  document.addEventListener('keyup', onKeyUp);
   
-  function interactWithNearestInstrument() {
-    // Now world is properly defined as it's passed as a parameter
-    const nearestInstrument = world.getNearestInstrument(player.position);
-    if (nearestInstrument) {
-      // Show the instrument panel
-      document.getElementById('instrument-panel').classList.remove('hidden');
-      audioSystem.setCurrentInstrument(nearestInstrument);
+  // Add mouse interaction for instrument interaction
+  document.addEventListener('click', onMouseClick);
+  
+  function onKeyDown(event) {
+    switch (event.code) {
+      case 'KeyW':
+        keys.forward = true;
+        break;
+      case 'KeyS':
+        keys.backward = true;
+        break;
+      case 'KeyA':
+        keys.left = true;
+        break;
+      case 'KeyD':
+        keys.right = true;
+        break;
+      case 'KeyE':
+        interactWithNearestInstrument(player.position, world, audioSystem);
+        break;
+      case 'Space':
+        if (canJump && isOnGround) {
+          velocity.y = 0.2;
+          canJump = false;
+          setTimeout(() => { canJump = true; }, 800);
+        }
+        break;
+      case 'ShiftLeft':
+        keys.run = true;
+        moveSpeed = 0.25; 
+        break;
     }
+  }
+  
+  function onKeyUp(event) {
+    switch (event.code) {
+      case 'KeyW':
+        keys.forward = false;
+        break;
+      case 'KeyS':
+        keys.backward = false;
+        break;
+      case 'KeyA':
+        keys.left = false;
+        break;
+      case 'KeyD':
+        keys.right = false;
+        break;
+      case 'ShiftLeft':
+        keys.run = false;
+        moveSpeed = 0.15;
+        break;
+    }
+  }
+  
+  function onMouseClick(event) {
+    const mouse = new THREE.Vector2(
+      (event.clientX / window.innerWidth) * 2 - 1,
+      -(event.clientY / window.innerHeight) * 2 + 1
+    );
+    
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(mouse, camera);
+    
+    // Here we could implement raycasting to interact with objects
+    // For simplicity, we'll just use the E key for now
+  }
+}
+
+export function updatePlayerMovement(player, camera, delta) {
+  const direction = new THREE.Vector3();
+  
+  velocity.y -= GRAVITY;
+  
+  if (player.position.y <= 0) {
+    velocity.y = 0;
+    player.position.y = 0;
+    isOnGround = true;
+  } else {
+    isOnGround = false;
+  }
+  
+  if (keys.forward) direction.z = -1;
+  if (keys.backward) direction.z = 1;
+  if (keys.left) direction.x = -1;
+  if (keys.right) direction.x = 1;
+  
+  if (direction.length() > 0) {
+    direction.normalize();
+    
+    direction.applyQuaternion(player.quaternion);
+    
+    direction.multiplyScalar(moveSpeed * delta * 60);
+    
+    player.position.add(direction);
+  }
+  
+  player.position.y += velocity.y;
+  
+  camera.position.set(
+    player.position.x,
+    player.position.y + 1.6, 
+    player.position.z
+  );
+  
+  camera.quaternion.copy(player.quaternion);
+}
+
+export function interactWithNearestInstrument(playerPosition, world, audioSystem) {
+  const nearestInstrument = world.getNearestInstrument(playerPosition);
+  if (nearestInstrument) {
+    document.getElementById('instrument-panel').classList.remove('hidden');
+    audioSystem.setCurrentInstrument(nearestInstrument);
   }
 }
