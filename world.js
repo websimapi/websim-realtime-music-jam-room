@@ -273,7 +273,6 @@ function createSky(scene) {
   skyUniforms['mieDirectionalG'].value = 0.8;
   
   const sun = new THREE.Vector3();
-  const pmremGenerator = new THREE.PMREMGenerator(renderer);
   
   // Set sun position
   const phi = THREE.MathUtils.degToRad(88);
@@ -306,15 +305,6 @@ function placeInstruments(scene, instrumentModels) {
         });
       }
     });
-    
-    // Add floating animation
-    const yPosition = model.position.y;
-    model.userData.animation = {
-      update: (delta) => {
-        model.position.y = yPosition + Math.sin(Date.now() * 0.001) * 0.5;
-        model.rotation.y += delta * 0.3;
-      }
-    };
     
     // Add to scene
     scene.add(model);
@@ -376,20 +366,4 @@ function createAmbientParticles(scene) {
   
   const particleSystem = new THREE.Points(particles, particleMaterial);
   scene.add(particleSystem);
-  
-  // Animate particles
-  particleSystem.userData.animation = {
-    update: (delta) => {
-      const positions = particleSystem.geometry.attributes.position.array;
-      for (let i = 0; i < particleCount; i++) {
-        positions[i * 3 + 1] += Math.sin((Date.now() * 0.001) + i) * 0.01;
-        
-        // Reset particles that go too high
-        if (positions[i * 3 + 1] > 60) {
-          positions[i * 3 + 1] = 0;
-        }
-      }
-      particleSystem.geometry.attributes.position.needsUpdate = true;
-    }
-  };
 }

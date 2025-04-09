@@ -24,6 +24,7 @@ let activeNotes = {};
 let roomState = null;
 let roomPresence = null;
 let networkSystem = null;
+let clientColor = null;
 
 // Create instruments
 const reverb = new Tone.Reverb(1.5).toDestination();
@@ -92,6 +93,63 @@ function generateNotes(scale, startOctave, numRows) {
   return notes;
 }
 
+// Helper function to toggle a note
+function toggleNote(row, col, cell, clientColor) {
+  if (!networkSystem) return;
+  
+  const presence = networkSystem.getPresence()[networkSystem.getClientId()];
+  const noteKey = `${row}-${col}`;
+  const note = notes[row];
+  
+  const updatedNotes = { ...presence.activeNotes } || {};
+  
+  if (updatedNotes[noteKey]) {
+    // Remove note
+    delete updatedNotes[noteKey];
+    cell.classList.remove('active');
+    cell.style.backgroundColor = '';
+  } else {
+    // Add note
+    updatedNotes[noteKey] = {
+      note,
+      instrument: currentInstrument
+    };
+    cell.classList.add('active');
+    cell.style.backgroundColor = clientColor;
+    
+    // Play sound immediately on click
+    playSound(note, instruments[currentInstrument]);
+    
+    // Send note flash event
+    const rect = cell.getBoundingClientRect();
+    const gridRect = document.getElementById('grid').getBoundingClientRect();
+    const x = (rect.left + rect.width / 2 - gridRect.left) / gridRect.width;
+    const y = (rect.top + rect.height / 2 - gridRect.top) / gridRect.height;
+    
+    networkSystem.send({
+      type: 'noteOn',
+      x,
+      y,
+      color: clientColor
+    });
+  }
+  
+  networkSystem.updatePresence({
+    activeNotes: updatedNotes
+  });
+}
+
+// Helper function to play a sound
+function playSound(note, instrument) {
+  if (instrument) {
+    if (instrument === instruments.drum) {
+      instrument.triggerAttackRelease('16n');
+    } else {
+      instrument.triggerAttackRelease(note, '16n');
+    }
+  }
+}
+
 // Initialize the audio system
 export async function initializeAudio() {
   notes = generateNotes(CURRENT_SCALE, currentOctave, GRID_ROWS);
@@ -110,6 +168,7 @@ export async function initializeAudio() {
       networkSystem = network;
       roomState = network.getRoomState();
       roomPresence = network.getPresence();
+      clientColor = network.getClientColor();
     },
     
     setCurrentInstrument(instrument) {
@@ -268,20 +327,26 @@ export async function initializeAudio() {
     },
     
     // Spatial audio for 3D world
-    createPositionalSound(position, instrument = 'synth') {
+    createPositionalSound(position, instrument = 'synth', camera) {
       const listener = new Tone.Listener();
       Tone.Transport.on('update', () => {
-        listener.setPosition(
-          camera.position.x,
-          camera.position.y,
-          camera.position.z
-        );
-        listener.setOrientation(
-          camera.getWorldDirection().x,
-          camera.getWorldDirection().y,
-          camera.getWorldDirection().z,
-          0, 1, 0
-        );
+        if (camera) {
+          listener.setPosition(
+            camera.position.x,
+            camera.position.y,
+            camera.position.z
+          );
+          
+          const direction = new THREE.Vector3(0, 0, -1);
+          direction.applyQuaternion(camera.quaternion);
+          
+          listener.setOrientation(
+            direction.x,
+            direction.y,
+            direction.z,
+            0, 1, 0
+          );
+        }
       });
       
       const panner = new Tone.Panner3D({
@@ -309,63 +374,6 @@ export async function initializeAudio() {
       };
     }
   };
-}
-
-// Helper function to toggle a note
-function toggleNote(row, col, cell, clientColor) {
-  if (!networkSystem) return;
-  
-  const presence = networkSystem.getPresence()[networkSystem.getClientId()];
-  const noteKey = `${row}-${col}`;
-  const note = notes[row];
-  
-  const updatedNotes = { ...presence.activeNotes } || {};
-  
-  if (updatedNotes[noteKey]) {
-    // Remove note
-    delete updatedNotes[noteKey];
-    cell.classList.remove('active');
-    cell.style.backgroundColor = '';
-  } else {
-    // Add note
-    updatedNotes[noteKey] = {
-      note,
-      instrument: currentInstrument
-    };
-    cell.classList.add('active');
-    cell.style.backgroundColor = clientColor;
-    
-    // Play sound immediately on click
-    playSound(note, instruments[currentInstrument]);
-    
-    // Send note flash event
-    const rect = cell.getBoundingClientRect();
-    const gridRect = document.getElementById('grid').getBoundingClientRect();
-    const x = (rect.left + rect.width / 2 - gridRect.left) / gridRect.width;
-    const y = (rect.top + rect.height / 2 - gridRect.top) / gridRect.height;
-    
-    networkSystem.send({
-      type: 'noteOn',
-      x,
-      y,
-      color: clientColor
-    });
-  }
-  
-  networkSystem.updatePresence({
-    activeNotes: updatedNotes
-  });
-}
-
-// Helper function to play a sound
-function playSound(note, instrument) {
-  if (instrument) {
-    if (instrument === instruments.drum) {
-      instrument.triggerAttackRelease('16n');
-    } else {
-      instrument.triggerAttackRelease(note, '16n');
-    }
-  }
 }
 
 // Set up instruments for the 3D world

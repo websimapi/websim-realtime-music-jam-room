@@ -9,10 +9,304 @@
   {
     "imports": {
       "three": "https://cdn.jsdelivr.net/npm/three@0.157.0/build/three.module.js",
-      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.157.0/examples/jsm/"
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.157.0/examples/jsm/",
+      "tone": "https://cdn.jsdelivr.net/npm/tone@14.8.49/build/Tone.js"
     }
   }
   </script>
+  <style>
+    :root {
+      --primary: #6c5ce7;
+      --secondary: #a29bfe;
+      --accent: #fd79a8;
+      --light: #f8f9fa;
+      --dark: #2d3436;
+      --success: #00b894;
+      --danger: #d63031;
+      --warning: #fdcb6e;
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      user-select: none;
+    }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, var(--dark), #1e272e);
+      color: var(--light);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+    
+    header {
+      background-color: rgba(0, 0, 0, 0.4);
+      padding: 1rem;
+      text-align: center;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    }
+    
+    h1 {
+      font-size: 2rem;
+      color: var(--light);
+      margin-bottom: 0.5rem;
+    }
+    
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 1rem;
+      gap: 1rem;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      width: 100%;
+    }
+    
+    .jam-grid {
+      position: relative;
+      background-color: rgba(0, 0, 0, 0.2);
+      border-radius: 8px;
+      overflow: hidden;
+      height: 400px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    }
+    
+    .grid-container {
+      display: grid;
+      grid-template-columns: repeat(16, 1fr);
+      grid-template-rows: repeat(13, 1fr);
+      height: 100%;
+      gap: 1px;
+      padding: 2px;
+    }
+    
+    .grid-cell {
+      background-color: rgba(255, 255, 255, 0.05);
+      border-radius: 4px;
+      transition: all 0.1s ease;
+      cursor: pointer;
+    }
+    
+    .grid-cell:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+    
+    .grid-cell.active {
+      background-color: var(--primary);
+      box-shadow: 0 0 10px var(--primary);
+    }
+    
+    .grid-cell.playing {
+      animation: pulse 0.5s infinite alternate;
+    }
+    
+    @keyframes pulse {
+      from { opacity: 1; transform: scale(1); }
+      to { opacity: 0.8; transform: scale(1.05); }
+    }
+    
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      padding: 1rem;
+      background-color: rgba(0, 0, 0, 0.2);
+      border-radius: 8px;
+    }
+    
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    
+    .btn {
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 4px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      min-width: 100px;
+      text-align: center;
+    }
+    
+    .btn-primary {
+      background-color: var(--primary);
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background-color: var(--secondary);
+      transform: translateY(-2px);
+    }
+    
+    .btn-success {
+      background-color: var(--success);
+      color: white;
+    }
+    
+    .btn-success:hover {
+      background-color: #00d2a5;
+      transform: translateY(-2px);
+    }
+    
+    .btn-danger {
+      background-color: var(--danger);
+      color: white;
+    }
+    
+    .btn-danger:hover {
+      background-color: #ff4757;
+      transform: translateY(-2px);
+    }
+    
+    select, input[type="range"] {
+      padding: 0.5rem;
+      border-radius: 4px;
+      border: 1px solid var(--secondary);
+      background-color: var(--dark);
+      color: var(--light);
+      width: 100%;
+    }
+    
+    .participants {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+    
+    .participant {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      background-color: rgba(0, 0, 0, 0.2);
+      border-radius: 20px;
+      border: 2px solid transparent;
+      transition: all 0.2s ease;
+    }
+    
+    .participant.self {
+      border-color: var(--accent);
+    }
+    
+    .participant-avatar {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background-color: var(--primary);
+      overflow: hidden;
+    }
+    
+    .participant-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    
+    .participant-name {
+      font-weight: bold;
+    }
+    
+    .participant-instrument {
+      font-size: 0.8rem;
+      opacity: 0.8;
+    }
+    
+    .transport {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+    
+    .transport-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background-color: var(--primary);
+      color: white;
+      font-size: 1.5rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .transport-btn:hover {
+      transform: scale(1.1);
+      background-color: var(--secondary);
+    }
+    
+    .transport-btn.active {
+      background-color: var(--success);
+    }
+    
+    .transport-btn svg {
+      width: 24px;
+      height: 24px;
+    }
+    
+    .cursor {
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      z-index: 10;
+      opacity: 0.7;
+    }
+    
+    .playhead {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background-color: var(--accent);
+      z-index: 5;
+      pointer-events: none;
+    }
+    
+    .note-flash {
+      position: absolute;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 10;
+      animation: flash 0.5s forwards;
+    }
+    
+    @keyframes flash {
+      0% { transform: scale(0); opacity: 1; }
+      100% { transform: scale(3); opacity: 0; }
+    }
+    
+    @media (max-width: 768px) {
+      .jam-grid {
+        height: 300px;
+      }
+      
+      .controls {
+        flex-direction: column;
+      }
+      
+      .transport-btn {
+        width: 50px;
+        height: 50px;
+      }
+    }
+  </style>
 </head>
 <body>
   <div id="ui-container">
@@ -82,6 +376,551 @@
   <canvas id="world-canvas"></canvas>
   
   <script type="module" src="app.js"></script>
+  
+  <script>
+    // Constants and configuration
+    const GRID_COLS = 16;
+    const GRID_ROWS = 13;
+    const SCALES = {
+      'pentatonic': ['C', 'D', 'E', 'G', 'A'],
+      'major': ['C', 'D', 'E', 'F', 'G', 'A', 'B'],
+      'minor': ['C', 'D', 'Eb', 'F', 'G', 'Ab', 'Bb'],
+      'blues': ['C', 'Eb', 'F', 'F#', 'G', 'Bb']
+    };
+    const CURRENT_SCALE = 'pentatonic';
+    
+    // State variables
+    let isPlaying = false;
+    let currentStep = 0;
+    let tempo = 120;
+    let stepInterval;
+    let currentInstrument = 'synth';
+    let currentOctave = 3;
+    let volume = 0.7;
+    let clientColor = null;
+    
+    // Initialize Tone.js instruments
+    const reverb = new Tone.Reverb(1.5).toDestination();
+    reverb.wet.value = 0.3;
+    
+    const instruments = {
+      synth: new Tone.PolySynth(Tone.Synth, {
+        oscillator: {
+          type: 'sine'
+        },
+        envelope: {
+          attack: 0.02,
+          decay: 0.1,
+          sustain: 0.3,
+          release: 1
+        }
+      }).connect(reverb),
+      
+      bass: new Tone.PolySynth(Tone.Synth, {
+        oscillator: {
+          type: 'triangle'
+        },
+        envelope: {
+          attack: 0.05,
+          decay: 0.2,
+          sustain: 0.4,
+          release: 1.5
+        }
+      }).connect(reverb),
+      
+      piano: new Tone.PolySynth(Tone.Synth, {
+        oscillator: {
+          type: 'triangle8'
+        },
+        envelope: {
+          attack: 0.01,
+          decay: 0.1,
+          sustain: 0.5,
+          release: 1
+        }
+      }).connect(reverb),
+      
+      guitar: new Tone.PolySynth(Tone.AMSynth, {
+        oscillator: {
+          type: 'square'
+        },
+        envelope: {
+          attack: 0.01,
+          decay: 0.1,
+          sustain: 0.3,
+          release: 1
+        }
+      }).connect(reverb),
+      
+      drum: new Tone.NoiseSynth({
+        noise: {
+          type: 'white'
+        },
+        envelope: {
+          attack: 0.005,
+          decay: 0.1,
+          sustain: 0,
+          release: 0.1
+        }
+      }).connect(reverb)
+    };
+    
+    // Generate notes based on scale
+    function generateNotes(scale, startOctave, numRows) {
+      const notes = [];
+      const selectedScale = SCALES[scale];
+      let currentOctave = startOctave + Math.floor(numRows / selectedScale.length);
+      
+      for (let i = 0; i < numRows; i++) {
+        const scaleIndex = (numRows - 1 - i) % selectedScale.length;
+        if (scaleIndex === selectedScale.length - 1 && i !== 0) {
+          currentOctave--;
+        }
+        notes.push(`${selectedScale[scaleIndex]}${currentOctave}`);
+      }
+      
+      return notes;
+    }
+    
+    const notes = generateNotes(CURRENT_SCALE, currentOctave, GRID_ROWS);
+    
+    // WebSocket room initialization
+    const room = new WebsimSocket();
+    
+    async function initializeRoom() {
+      await room.initialize();
+      
+      // Initial state when joining room
+      const initialPresence = {
+        instrument: currentInstrument,
+        octave: currentOctave,
+        volume: volume,
+        color: getRandomColor(),
+        cursorX: 0,
+        cursorY: 0,
+        activeNotes: {}
+      };
+      
+      clientColor = initialPresence.color;
+      room.updatePresence(initialPresence);
+      
+      // If room state is empty, initialize it
+      if (!room.roomState.tempo) {
+        room.updateRoomState({
+          tempo: tempo,
+          isPlaying: false,
+          currentStep: 0
+        });
+      } else {
+        // Sync with existing room
+        tempo = room.roomState.tempo;
+        document.getElementById('tempo').value = tempo;
+        document.getElementById('tempo-value').textContent = `${tempo} BPM`;
+        
+        if (room.roomState.isPlaying) {
+          startPlayback();
+        }
+      }
+      
+      // Subscribe to presence changes
+      room.subscribePresence(updateParticipants);
+      
+      // Subscribe to room state changes
+      room.subscribeRoomState((state) => {
+        if (state.tempo !== tempo) {
+          tempo = state.tempo;
+          document.getElementById('tempo').value = tempo;
+          document.getElementById('tempo-value').textContent = `${tempo} BPM`;
+          
+          if (isPlaying) {
+            stopPlayback();
+            startPlayback();
+          }
+        }
+        
+        if (state.isPlaying !== isPlaying) {
+          if (state.isPlaying) {
+            startPlayback();
+          } else {
+            stopPlayback();
+          }
+        }
+      });
+      
+      // Listen for presence update requests
+      room.subscribePresenceUpdateRequests((request, fromClientId) => {
+        if (request.type === 'playNote') {
+          const { note, instrument } = request;
+          playSound(note, instruments[instrument]);
+        }
+      });
+      
+      // Event handling
+      room.onmessage = (event) => {
+        const data = event.data;
+        
+        switch(data.type) {
+          case 'noteOn':
+            createNoteFlash(data.x, data.y, data.color);
+            break;
+          case 'connected':
+            console.log(`${data.username} joined the jam session`);
+            break;
+          case 'disconnected':
+            console.log(`${data.username} left the jam session`);
+            break;
+        }
+      };
+      
+      updateRoomInfo();
+      setupGrid();
+      setupEventListeners();
+      updateParticipants();
+    }
+    
+    function updateRoomInfo() {
+      const infoElement = document.getElementById('room-info');
+      const self = room.peers[room.clientId];
+      infoElement.textContent = `Welcome, ${self.username}!`;
+    }
+    
+    function updateParticipants() {
+      const participantsElement = document.getElementById('participants');
+      participantsElement.innerHTML = '';
+      
+      Object.keys(room.presence).forEach(clientId => {
+        const presence = room.presence[clientId];
+        const peer = room.peers[clientId];
+        
+        if (!peer || !presence) return;
+        
+        const participantElement = document.createElement('div');
+        participantElement.className = 'participant';
+        participantElement.dataset.clientId = clientId;
+        
+        if (clientId === room.clientId) {
+          participantElement.classList.add('self');
+        }
+        
+        participantElement.innerHTML = `
+          <div class="participant-avatar" style="background-color: ${presence.color || '#6c5ce7'}">
+            <img src="${peer.avatarUrl}" alt="${peer.username}">
+          </div>
+          <div>
+            <div class="participant-name">${peer.username}</div>
+            <div class="participant-instrument">${presence.instrument || 'synth'}</div>
+          </div>
+        `;
+        
+        participantsElement.appendChild(participantElement);
+      });
+    }
+    
+    function setupGrid() {
+      const gridElement = document.getElementById('grid');
+      gridElement.innerHTML = '';
+      
+      for (let row = 0; row < GRID_ROWS; row++) {
+        for (let col = 0; col < GRID_COLS; col++) {
+          const cell = document.createElement('div');
+          cell.className = 'grid-cell';
+          cell.dataset.row = row;
+          cell.dataset.col = col;
+          cell.dataset.note = notes[row];
+          
+          // Add mouseover event for cursor tracking
+          cell.addEventListener('mouseover', (e) => {
+            const rect = e.target.getBoundingClientRect();
+            const gridRect = gridElement.getBoundingClientRect();
+            const x = (e.clientX - gridRect.left) / gridRect.width;
+            const y = (e.clientY - gridRect.top) / gridRect.height;
+            
+            room.updatePresence({
+              cursorX: x,
+              cursorY: y
+            });
+          });
+          
+          // Add click event for toggling notes
+          cell.addEventListener('click', (e) => {
+            toggleNote(row, col, cell);
+          });
+          
+          gridElement.appendChild(cell);
+        }
+      }
+      
+      // Check if we have any active notes in presence and update UI
+      const presence = room.presence[room.clientId];
+      if (presence && presence.activeNotes) {
+        Object.keys(presence.activeNotes).forEach(key => {
+          const [row, col] = key.split('-').map(Number);
+          const cell = document.querySelector(`.grid-cell[data-row="${row}"][data-col="${col}"]`);
+          if (cell) {
+            cell.classList.add('active');
+            cell.style.backgroundColor = presence.color;
+          }
+        });
+      }
+    }
+    
+    function toggleNote(row, col, cell) {
+      const presence = room.presence[room.clientId];
+      const noteKey = `${row}-${col}`;
+      const note = notes[row];
+      
+      const activeNotes = { ...presence.activeNotes };
+      
+      if (activeNotes[noteKey]) {
+        // Remove note
+        delete activeNotes[noteKey];
+        cell.classList.remove('active');
+        cell.style.backgroundColor = '';
+      } else {
+        // Add note
+        activeNotes[noteKey] = {
+          note,
+          instrument: currentInstrument
+        };
+        cell.classList.add('active');
+        cell.style.backgroundColor = presence.color;
+        
+        // Play sound immediately on click
+        playSound(note, instruments[currentInstrument]);
+        
+        // Send note flash event
+        const rect = cell.getBoundingClientRect();
+        const gridRect = document.getElementById('grid').getBoundingClientRect();
+        const x = (rect.left + rect.width / 2 - gridRect.left) / gridRect.width;
+        const y = (rect.top + rect.height / 2 - gridRect.top) / gridRect.height;
+        
+        room.send({
+          type: 'noteOn',
+          x,
+          y,
+          color: presence.color
+        });
+      }
+      
+      room.updatePresence({
+        activeNotes
+      });
+    }
+    
+    function createNoteFlash(x, y, color) {
+      const gridElement = document.getElementById('grid');
+      const gridRect = gridElement.getBoundingClientRect();
+      
+      const flash = document.createElement('div');
+      flash.className = 'note-flash';
+      flash.style.left = `${x * 100}%`;
+      flash.style.top = `${y * 100}%`;
+      flash.style.backgroundColor = color;
+      
+      gridElement.appendChild(flash);
+      
+      // Remove after animation completes
+      setTimeout(() => {
+        flash.remove();
+      }, 500);
+    }
+    
+    function playSound(note, instrument) {
+      if (instrument) {
+        if (instrument === instruments.drum) {
+          instrument.triggerAttackRelease('16n');
+        } else {
+          instrument.triggerAttackRelease(note, '16n');
+        }
+      }
+    }
+    
+    function startPlayback() {
+      if (isPlaying) return;
+      
+      isPlaying = true;
+      document.getElementById('play-btn').classList.add('active');
+      
+      const stepDuration = 60000 / (tempo * 4); // 16th notes
+      currentStep = 0;
+      
+      stepInterval = setInterval(() => {
+        // Move playhead
+        const playhead = document.getElementById('playhead');
+        const gridElement = document.getElementById('grid');
+        const stepWidth = gridElement.offsetWidth / GRID_COLS;
+        playhead.style.left = `${currentStep * stepWidth}px`;
+        
+        // Play notes at this step
+        Object.keys(room.presence).forEach(clientId => {
+          const presence = room.presence[clientId];
+          if (!presence.activeNotes) return;
+          
+          Object.keys(presence.activeNotes).forEach(key => {
+            const [row, col] = key.split('-').map(Number);
+            if (col === currentStep) {
+              const noteInfo = presence.activeNotes[key];
+              
+              // Highlight the cell
+              const cell = document.querySelector(`.grid-cell[data-row="${row}"][data-col="${col}"]`);
+              if (cell) {
+                cell.classList.add('playing');
+                setTimeout(() => cell.classList.remove('playing'), stepDuration / 2);
+              }
+              
+              // Play the sound
+              if (clientId === room.clientId) {
+                playSound(noteInfo.note, instruments[noteInfo.instrument]);
+              } else {
+                // Request other clients to play their notes
+                room.requestPresenceUpdate(clientId, {
+                  type: 'playNote',
+                  note: noteInfo.note,
+                  instrument: noteInfo.instrument
+                });
+              }
+            }
+          });
+        });
+        
+        currentStep = (currentStep + 1) % GRID_COLS;
+      }, stepDuration);
+      
+      // Update room state
+      room.updateRoomState({
+        isPlaying: true,
+        currentStep: 0
+      });
+    }
+    
+    function stopPlayback() {
+      if (!isPlaying) return;
+      
+      isPlaying = false;
+      document.getElementById('play-btn').classList.remove('active');
+      clearInterval(stepInterval);
+      
+      // Hide playhead
+      const playhead = document.getElementById('playhead');
+      playhead.style.left = '-10px';
+      
+      // Update room state
+      room.updateRoomState({
+        isPlaying: false,
+        currentStep: 0
+      });
+    }
+    
+    function setupEventListeners() {
+      // Play/Stop buttons
+      document.getElementById('play-btn').addEventListener('click', () => {
+        if (!isPlaying) {
+          startPlayback();
+        } else {
+          stopPlayback();
+        }
+      });
+      
+      document.getElementById('stop-btn').addEventListener('click', () => {
+        stopPlayback();
+      });
+      
+      // Instrument selector
+      document.getElementById('instrument').addEventListener('change', (e) => {
+        currentInstrument = e.target.value;
+        room.updatePresence({
+          instrument: currentInstrument
+        });
+      });
+      
+      // Octave selector
+      document.getElementById('octave').addEventListener('change', (e) => {
+        currentOctave = parseInt(e.target.value);
+        room.updatePresence({
+          octave: currentOctave
+        });
+      });
+      
+      // Volume control
+      document.getElementById('volume').addEventListener('input', (e) => {
+        volume = parseInt(e.target.value) / 100;
+        Object.values(instruments).forEach(inst => {
+          inst.volume.value = volume * 10 - 10; // Convert to dB scale
+        });
+        room.updatePresence({
+          volume: volume
+        });
+      });
+      
+      // Tempo control
+      document.getElementById('tempo').addEventListener('input', (e) => {
+        tempo = parseInt(e.target.value);
+        document.getElementById('tempo-value').textContent = `${tempo} BPM`;
+        
+        room.updateRoomState({
+          tempo: tempo
+        });
+        
+        if (isPlaying) {
+          stopPlayback();
+          startPlayback();
+        }
+      });
+      
+      // Clear button
+      document.getElementById('clear-btn').addEventListener('click', () => {
+        const presence = room.presence[room.clientId];
+        
+        // Remove active class from all cells
+        document.querySelectorAll('.grid-cell.active').forEach(cell => {
+          cell.classList.remove('active');
+          cell.style.backgroundColor = '';
+        });
+        
+        room.updatePresence({
+          activeNotes: {}
+        });
+      });
+      
+      // Track mouse movement
+      document.addEventListener('mousemove', (e) => {
+        const gridElement = document.getElementById('grid');
+        const gridRect = gridElement.getBoundingClientRect();
+        
+        // Only update if mouse is over the grid
+        if (
+          e.clientX >= gridRect.left && 
+          e.clientX <= gridRect.right && 
+          e.clientY >= gridRect.top && 
+          e.clientY <= gridRect.bottom
+        ) {
+          const x = (e.clientX - gridRect.left) / gridRect.width;
+          const y = (e.clientY - gridRect.top) / gridRect.height;
+          
+          room.updatePresence({
+            cursorX: x,
+            cursorY: y
+          });
+        }
+      });
+    }
+    
+    function getRandomColor() {
+      const hue = Math.floor(Math.random() * 360);
+      return `hsl(${hue}, 70%, 65%)`;
+    }
+    
+    // Initialize Tone.js audio context on user interaction
+    document.body.addEventListener('click', async () => {
+      if (Tone.context.state !== 'running') {
+        await Tone.start();
+        console.log('Audio context started');
+      }
+    }, { once: true });
+    
+    // Start the application
+    window.addEventListener('DOMContentLoaded', initializeRoom);
+  </script>
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"4c6229722a6346bc8eb5cb0e5eae5d41","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>

@@ -34,6 +34,9 @@ async function init() {
   audioSystem = await initializeAudio();
   networkSystem = await setupNetwork(onNetworkReady, onPlayerJoin, onPlayerLeave, onPlayerUpdate);
   
+  // Connect audio system to network
+  audioSystem.setNetworkSystem(networkSystem);
+  
   // Setup UI event listeners
   setupUIControls();
   
@@ -217,6 +220,34 @@ function onNetworkReady(roomInfo) {
   // Initialize grid based on room state
   audioSystem.setupGrid(document.getElementById('grid'), networkSystem.getClientColor());
   updateParticipantsList();
+  
+  // Create instrument list
+  setupInstrumentList();
+}
+
+function setupInstrumentList() {
+  const instrumentList = document.getElementById('instrument-list');
+  const instrumentTypes = setupInstruments().INSTRUMENT_TYPES;
+  
+  instrumentList.innerHTML = '';
+  
+  instrumentTypes.forEach(type => {
+    const item = document.createElement('div');
+    item.className = 'instrument-item';
+    item.textContent = type.charAt(0).toUpperCase() + type.slice(1);
+    
+    if (type === 'synth') {
+      item.classList.add('active');
+    }
+    
+    item.addEventListener('click', () => {
+      document.querySelectorAll('.instrument-item').forEach(el => el.classList.remove('active'));
+      item.classList.add('active');
+      audioSystem.setCurrentInstrument(type);
+    });
+    
+    instrumentList.appendChild(item);
+  });
 }
 
 function onPlayerJoin(clientId, username) {
