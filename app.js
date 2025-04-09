@@ -48,7 +48,7 @@ async function init() {
   networkSystem.triggerReady();
   
   if (isMobile()) {
-    setupMobileControls(player, camera);
+    setupMobileControls(player, camera, world, audioSystem);
   }
   
   // Start the render loop

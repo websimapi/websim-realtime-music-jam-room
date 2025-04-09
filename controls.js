@@ -2,7 +2,7 @@ export function isMobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 }
 
-export function setupMobileControls(player, camera) {
+export function setupMobileControls(player, camera, world, audioSystem) {
   const joystickElement = document.getElementById('joystick');
   const joystickContainer = document.querySelector('.joystick-container');
   const mobileControls = document.getElementById('mobile-controls');
@@ -106,7 +106,7 @@ export function setupMobileControls(player, camera) {
   updateMovement();
   
   function interactWithNearestInstrument() {
-    // TODO: Implement interaction with nearest instrument
+    // Now world is properly defined as it's passed as a parameter
     const nearestInstrument = world.getNearestInstrument(player.position);
     if (nearestInstrument) {
       // Show the instrument panel
