@@ -10,7 +10,7 @@ import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 // Import our game modules
 import { initializeAudio, setupInstruments } from './audio.js';
 import { loadModels, createWorld } from './world.js';
-import { setupNetwork, updatePlayerState } from './network.js';
+import { setupNetwork, updatePlayerState, setRoomReference } from './network.js';
 import { isMobile, setupMobileControls } from './controls.js';
 
 // Global references
@@ -31,7 +31,7 @@ async function init() {
   setupThreeJs();
   setupPostProcessing();
   
-  // Initialize the room first to get user data
+  // Initialize network first, but don't trigger callbacks yet
   networkSystem = await setupNetwork(onNetworkReady, onPlayerJoin, onPlayerLeave, onPlayerUpdate);
   
   // Initialize audio system after network
@@ -43,6 +43,9 @@ async function init() {
   
   // Start loading world assets
   world = await createWorld(scene, loadingManager);
+  
+  // Now that the world is ready, we can trigger the network ready callback
+  networkSystem.triggerReady();
   
   if (isMobile()) {
     setupMobileControls(player, camera);
@@ -213,6 +216,12 @@ function setupUIControls() {
 }
 
 function onNetworkReady(roomInfo) {
+  // Make sure world is created before using it
+  if (!world) {
+    console.error("World not initialized yet!");
+    return;
+  }
+  
   const infoElement = document.getElementById('room-info');
   infoElement.textContent = `Welcome, ${roomInfo.username}!`;
   

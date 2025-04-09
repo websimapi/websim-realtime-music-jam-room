@@ -59,7 +59,7 @@ export async function setupNetwork(onReady, onJoin, onLeave, onUpdate) {
     }
   };
   
-  // Notify that we're ready
+  // Get self info
   const self = room.peers[room.clientId];
   const roomInfo = {
     username: self.username,
@@ -67,10 +67,13 @@ export async function setupNetwork(onReady, onJoin, onLeave, onUpdate) {
     avatarUrl: self.avatarUrl
   };
   
-  onReady(roomInfo);
-  
-  // Return network API
+  // Return network API with a trigger for onReady callback
   return {
+    triggerReady() {
+      // Only call onReady when explicitly triggered from app.js
+      onReady(roomInfo);
+    },
+    
     getClientId() {
       return room.clientId;
     },
@@ -109,7 +112,12 @@ export async function setupNetwork(onReady, onJoin, onLeave, onUpdate) {
   };
 }
 
+// Room reference for updatePlayerState
+let room = null;
+
 export function updatePlayerState(position, rotation) {
+  if (!room) return;
+  
   // Only send updates when values change significantly to reduce network traffic
   const currentPosition = room.presence[room.clientId]?.position;
   const currentRotation = room.presence[room.clientId]?.rotation;
@@ -142,6 +150,11 @@ export function updatePlayerState(position, rotation) {
       }
     });
   }
+}
+
+// Export a function to set the room reference
+export function setRoomReference(roomRef) {
+  room = roomRef;
 }
 
 function getRandomColor() {
