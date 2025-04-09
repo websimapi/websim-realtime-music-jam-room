@@ -821,24 +821,17 @@
         }
       });
       
-      document.getElementById('stop-btn').addEventListener('click', () => {
-        stopPlayback();
-      });
-      
       // Instrument selector
-      document.getElementById('instrument').addEventListener('change', (e) => {
-        currentInstrument = e.target.value;
-        room.updatePresence({
-          instrument: currentInstrument
-        });
+      document.getElementById('instrument-btn').addEventListener('click', () => {
+        // Open instrument panel
+        document.getElementById('instrument-panel').classList.remove('hidden');
       });
       
       // Octave selector
-      document.getElementById('octave').addEventListener('change', (e) => {
-        currentOctave = parseInt(e.target.value);
-        room.updatePresence({
-          octave: currentOctave
-        });
+      document.getElementById('instrument-panel').addEventListener('click', (e) => {
+        if (e.target === document.getElementById('close-panel')) {
+          document.getElementById('instrument-panel').classList.add('hidden');
+        }
       });
       
       // Volume control

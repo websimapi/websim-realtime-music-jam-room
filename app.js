@@ -31,21 +31,22 @@ async function init() {
   setupThreeJs();
   setupPostProcessing();
   
-  audioSystem = await initializeAudio();
+  // Initialize the room first to get user data
   networkSystem = await setupNetwork(onNetworkReady, onPlayerJoin, onPlayerLeave, onPlayerUpdate);
   
-  // Connect audio system to network
+  // Initialize audio system after network
+  audioSystem = await initializeAudio();
   audioSystem.setNetworkSystem(networkSystem);
   
   // Setup UI event listeners
   setupUIControls();
   
+  // Start loading world assets
+  world = await createWorld(scene, loadingManager);
+  
   if (isMobile()) {
     setupMobileControls(player, camera);
   }
-  
-  // Start loading world assets
-  world = await createWorld(scene, loadingManager);
   
   // Start the render loop
   clock.start();
@@ -84,7 +85,6 @@ function setupThreeJs() {
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1;
-  renderer.outputEncoding = THREE.sRGBEncoding;
   
   // Set up camera controls
   controls = new OrbitControls(camera, renderer.domElement);
@@ -156,6 +156,11 @@ function onWindowResize() {
 }
 
 function setupUIControls() {
+  // Initialize click handler to start audio context
+  document.body.addEventListener('click', async () => {
+    // Audio context will be started by audioSystem when needed
+  }, { once: true });
+
   // Instrument panel toggle
   document.getElementById('instrument-btn').addEventListener('click', () => {
     document.getElementById('instrument-panel').classList.toggle('hidden');

@@ -26,130 +26,6 @@ let roomPresence = null;
 let networkSystem = null;
 let clientColor = null;
 
-// Create instruments
-const reverb = new Tone.Reverb(1.5).toDestination();
-reverb.wet.value = 0.3;
-
-const instruments = {
-  synth: new Tone.PolySynth(Tone.Synth, {
-    oscillator: { type: 'sine' },
-    envelope: { attack: 0.02, decay: 0.1, sustain: 0.3, release: 1 }
-  }).connect(reverb),
-  
-  bass: new Tone.PolySynth(Tone.Synth, {
-    oscillator: { type: 'triangle' },
-    envelope: { attack: 0.05, decay: 0.2, sustain: 0.4, release: 1.5 }
-  }).connect(reverb),
-  
-  piano: new Tone.PolySynth(Tone.Synth, {
-    oscillator: { type: 'triangle8' },
-    envelope: { attack: 0.01, decay: 0.1, sustain: 0.5, release: 1 }
-  }).connect(reverb),
-  
-  guitar: new Tone.PolySynth(Tone.AMSynth, {
-    oscillator: { type: 'square' },
-    envelope: { attack: 0.01, decay: 0.1, sustain: 0.3, release: 1 }
-  }).connect(reverb),
-  
-  drum: new Tone.NoiseSynth({
-    noise: { type: 'white' },
-    envelope: { attack: 0.005, decay: 0.1, sustain: 0, release: 0.1 }
-  }).connect(reverb),
-  
-  // New spatial instruments for 3D world
-  flute: new Tone.PolySynth(Tone.FMSynth, {
-    harmonicity: 3.01,
-    modulationIndex: 14,
-    oscillator: { type: 'sine' },
-    envelope: { attack: 0.1, decay: 0.2, sustain: 0.8, release: 1.5 }
-  }).connect(reverb),
-  
-  harp: new Tone.PolySynth(Tone.PluckSynth).connect(reverb),
-  
-  bells: new Tone.PolySynth(Tone.MetalSynth, {
-    frequency: 200,
-    envelope: { attack: 0.001, decay: 1.4, release: 0.2 },
-    harmonicity: 5.1,
-    modulationIndex: 32,
-    resonance: 4000,
-    octaves: 1.5
-  }).connect(reverb)
-};
-
-// Generate notes based on scale
-function generateNotes(scale, startOctave, numRows) {
-  const notes = [];
-  const selectedScale = SCALES[scale];
-  let currentOctave = startOctave + Math.floor(numRows / selectedScale.length);
-  
-  for (let i = 0; i < numRows; i++) {
-    const scaleIndex = (numRows - 1 - i) % selectedScale.length;
-    if (scaleIndex === selectedScale.length - 1 && i !== 0) {
-      currentOctave--;
-    }
-    notes.push(`${selectedScale[scaleIndex]}${currentOctave}`);
-  }
-  
-  return notes;
-}
-
-// Helper function to toggle a note
-function toggleNote(row, col, cell, clientColor) {
-  if (!networkSystem) return;
-  
-  const presence = networkSystem.getPresence()[networkSystem.getClientId()];
-  const noteKey = `${row}-${col}`;
-  const note = notes[row];
-  
-  const updatedNotes = { ...presence.activeNotes } || {};
-  
-  if (updatedNotes[noteKey]) {
-    // Remove note
-    delete updatedNotes[noteKey];
-    cell.classList.remove('active');
-    cell.style.backgroundColor = '';
-  } else {
-    // Add note
-    updatedNotes[noteKey] = {
-      note,
-      instrument: currentInstrument
-    };
-    cell.classList.add('active');
-    cell.style.backgroundColor = clientColor;
-    
-    // Play sound immediately on click
-    playSound(note, instruments[currentInstrument]);
-    
-    // Send note flash event
-    const rect = cell.getBoundingClientRect();
-    const gridRect = document.getElementById('grid').getBoundingClientRect();
-    const x = (rect.left + rect.width / 2 - gridRect.left) / gridRect.width;
-    const y = (rect.top + rect.height / 2 - gridRect.top) / gridRect.height;
-    
-    networkSystem.send({
-      type: 'noteOn',
-      x,
-      y,
-      color: clientColor
-    });
-  }
-  
-  networkSystem.updatePresence({
-    activeNotes: updatedNotes
-  });
-}
-
-// Helper function to play a sound
-function playSound(note, instrument) {
-  if (instrument) {
-    if (instrument === instruments.drum) {
-      instrument.triggerAttackRelease('16n');
-    } else {
-      instrument.triggerAttackRelease(note, '16n');
-    }
-  }
-}
-
 // Initialize the audio system
 export async function initializeAudio() {
   notes = generateNotes(CURRENT_SCALE, currentOctave, GRID_ROWS);
@@ -162,6 +38,67 @@ export async function initializeAudio() {
     }
   }, { once: true });
   
+  // Create instruments
+  const reverb = new Tone.Reverb(1.5).toDestination();
+  reverb.wet.value = 0.3;
+  
+  const instruments = {
+    synth: new Tone.PolySynth(Tone.Synth, {
+      oscillator: { type: 'sine' },
+      envelope: { attack: 0.02, decay: 0.1, sustain: 0.3, release: 1 }
+    }).connect(reverb),
+    
+    bass: new Tone.PolySynth(Tone.Synth, {
+      oscillator: { type: 'triangle' },
+      envelope: { attack: 0.05, decay: 0.2, sustain: 0.4, release: 1.5 }
+    }).connect(reverb),
+    
+    piano: new Tone.PolySynth(Tone.Synth, {
+      oscillator: { type: 'triangle8' },
+      envelope: { attack: 0.01, decay: 0.1, sustain: 0.5, release: 1 }
+    }).connect(reverb),
+    
+    guitar: new Tone.PolySynth(Tone.AMSynth, {
+      oscillator: { type: 'square' },
+      envelope: { attack: 0.01, decay: 0.1, sustain: 0.3, release: 1 }
+    }).connect(reverb),
+    
+    drum: new Tone.NoiseSynth({
+      noise: { type: 'white' },
+      envelope: { attack: 0.005, decay: 0.1, sustain: 0, release: 0.1 }
+    }).connect(reverb),
+    
+    // New spatial instruments for 3D world
+    flute: new Tone.PolySynth(Tone.FMSynth, {
+      harmonicity: 3.01,
+      modulationIndex: 14,
+      oscillator: { type: 'sine' },
+      envelope: { attack: 0.1, decay: 0.2, sustain: 0.8, release: 1.5 }
+    }).connect(reverb),
+    
+    harp: new Tone.PolySynth(Tone.PluckSynth).connect(reverb),
+    
+    bells: new Tone.PolySynth(Tone.MetalSynth, {
+      frequency: 200,
+      envelope: { attack: 0.001, decay: 1.4, release: 0.2 },
+      harmonicity: 5.1,
+      modulationIndex: 32,
+      resonance: 4000,
+      octaves: 1.5
+    }).connect(reverb)
+  };
+
+  // Helper function to play a sound
+  function playSound(note, instrument) {
+    if (instrument) {
+      if (instrument === instruments.drum) {
+        instrument.triggerAttackRelease('16n');
+      } else {
+        instrument.triggerAttackRelease(note, '16n');
+      }
+    }
+  }
+
   // Return the audio system API
   return {
     setNetworkSystem(network) {
@@ -299,7 +236,7 @@ export async function initializeAudio() {
           
           // Add click event for toggling notes
           cell.addEventListener('click', (e) => {
-            toggleNote(row, col, cell, clientColor);
+            this.toggleNote(row, col, cell, clientColor);
           });
           
           gridElement.appendChild(cell);
@@ -320,6 +257,51 @@ export async function initializeAudio() {
           });
         }
       }
+    },
+    
+    toggleNote(row, col, cell, color) {
+      if (!networkSystem) return;
+      
+      const presence = networkSystem.getPresence()[networkSystem.getClientId()];
+      const noteKey = `${row}-${col}`;
+      const note = notes[row];
+      
+      const updatedNotes = { ...presence.activeNotes } || {};
+      
+      if (updatedNotes[noteKey]) {
+        // Remove note
+        delete updatedNotes[noteKey];
+        cell.classList.remove('active');
+        cell.style.backgroundColor = '';
+      } else {
+        // Add note
+        updatedNotes[noteKey] = {
+          note,
+          instrument: currentInstrument
+        };
+        cell.classList.add('active');
+        cell.style.backgroundColor = color;
+        
+        // Play sound immediately on click
+        playSound(note, instruments[currentInstrument]);
+        
+        // Send note flash event
+        const rect = cell.getBoundingClientRect();
+        const gridRect = document.getElementById('grid').getBoundingClientRect();
+        const x = (rect.left + rect.width / 2 - gridRect.left) / gridRect.width;
+        const y = (rect.top + rect.height / 2 - gridRect.top) / gridRect.height;
+        
+        networkSystem.send({
+          type: 'noteOn',
+          x,
+          y,
+          color: color
+        });
+      }
+      
+      networkSystem.updatePresence({
+        activeNotes: updatedNotes
+      });
     },
     
     clearNotes() {
@@ -376,10 +358,35 @@ export async function initializeAudio() {
   };
 }
 
+// Generate notes based on scale
+function generateNotes(scale, startOctave, numRows) {
+  const notes = [];
+  const selectedScale = SCALES[scale];
+  let currentOctave = startOctave + Math.floor(numRows / selectedScale.length);
+  
+  for (let i = 0; i < numRows; i++) {
+    const scaleIndex = (numRows - 1 - i) % selectedScale.length;
+    if (scaleIndex === selectedScale.length - 1 && i !== 0) {
+      currentOctave--;
+    }
+    notes.push(`${selectedScale[scaleIndex]}${currentOctave}`);
+  }
+  
+  return notes;
+}
+
 // Set up instruments for the 3D world
 export function setupInstruments() {
   return {
-    INSTRUMENT_TYPES: Object.keys(instruments),
-    instruments
+    INSTRUMENT_TYPES: Object.keys({
+      synth: null,
+      bass: null,
+      piano: null,
+      guitar: null,
+      drum: null,
+      flute: null,
+      harp: null,
+      bells: null
+    }),
   };
 }
